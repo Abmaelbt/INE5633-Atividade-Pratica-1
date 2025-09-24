@@ -4,15 +4,12 @@ import json
 import copy
 
 class Node:
-    """
-    abstracao de um no na arvore de busca. 
-    """
     def __init__(self, state, parent=None, action=None, g=0, h=0):
         self.state = state
         self.parent = parent
         self.action = action
-        self.g = g  # metrica g: custo acumulado desde o estado inicial ate o no corrente.
-        self.h = h  # metrica h: estimativa heuristica do custo do no corrente ao estado-meta.
+        self.g = g
+        self.h = h
 
     def f(self):
         return self.g + self.h
@@ -23,22 +20,18 @@ class Node:
     def __repr__(self):
         return f"Node(f={self.f()}, g={self.g}, h={self.h}, state={self.state})"
 
-
-# mapeamento pre-computado das coordenadas do estado-meta para otimizar o calculo da distancia de manhattan.
 GOAL_POSITIONS = {
     1: (0, 0), 2: (0, 1), 3: (0, 2),
     4: (1, 0), 5: (1, 1), 6: (1, 2),
-    7: (2, 0), 8: (2, 1), 0: (2, 2)  # o valor 0 simboliza a posicao vazia no tabuleiro.
+    7: (2, 0), 8: (2, 1), 0: (2, 2)
 }
 
+#Heurísticas
+
 def heuristica_custo_uniforme(state, goal_state):
-    """ funcao heuristica nula, h(n)=0, que caracteriza a busca de custo uniforme (dijkstra). """
     return 0
 
 def heuristica_simples_admissivel(state, goal_state):
-    """
-    heuristica admissivel baseada na contagem de pecas mal posicionadas (distancia de hamming).
-    """
     misplaced = 0
     for r in range(3):
         for c in range(3):
@@ -47,9 +40,6 @@ def heuristica_simples_admissivel(state, goal_state):
     return misplaced
 
 def heuristica_manhattan_admissivel(state, goal_state):
-    """
-    heuristica admissivel informada pela distancia de manhattan. 
-    """
     distance = 0
     for r in range(3):
         for c in range(3):
@@ -60,15 +50,10 @@ def heuristica_manhattan_admissivel(state, goal_state):
     return distance
 
 def heuristica_nao_admissivel(state, goal_state):
-    """
-    funcao heuristica nao admissivel que superestima o custo real ao objetivo.
-    """
     return heuristica_manhattan_admissivel(state, goal_state) * 2
 
-# logica do algoritmo a* 
 
 def find_empty_tile(state):
-    """ localiza e retorna as coordenadas (linha, coluna) da posicao vacante (0) no estado atual. """
     for r in range(3):
         for c in range(3):
             if state[r][c] == 0:
@@ -76,18 +61,14 @@ def find_empty_tile(state):
     return None
 
 def get_successors(node):
-    # expande o no corrente, gerando o conjunto de todos os estados sucessores alcancaveis mediante operacoes validas.
     successors = []
     r, c = find_empty_tile(node.state)
-
-    # definicao do conjunto de operadores de transicao de estado: norte, sul, oeste, leste.
     moves = {
         'CIMA': (-1, 0),
         'BAIXO': (1, 0),
         'ESQUERDA': (0, -1),
         'DIREITA': (0, 1)
     }
-
     for action, (dr, dc) in moves.items():
         nr, nc = r + dr, c + dc
         if 0 <= nr < 3 and 0 <= nc < 3:
@@ -97,12 +78,11 @@ def get_successors(node):
     return successors
 
 def reconstruct_path(node):
-    # realiza a reconstrucao da trajetoria otima, percorrendo a arvore de busca retroativamente a partir do no-meta ate o no-raiz.
     path = []
     while node.parent is not None:
         path.append(node.action)
         node = node.parent
-    return path[::-1] # inverte a sequencia de acoes para apresentar a solucao na ordem cronologica correta.
+    return path[::-1]
 
 def visualize_path(initial_state, path):
     def apply_move(state, move):
@@ -126,47 +106,36 @@ def visualize_path(initial_state, path):
         current_state = apply_move(current_state, move)
         print_board(current_state, f"Passo {i+1}: {move}")
 
-def a_star_search(initial_state, goal_state, heuristic_func):
-    # implementacao canonica do algoritmo de busca a*.
-    start_time = time.time()
+#A* search
 
-    # converte as matrizes de estado para tuplas imutaveis, permitindo sua utilizacao como chaves em estruturas de hash (dicionarios e conjuntos).
+def a_star_search(initial_state, goal_state, heuristic_func):
+    start_time = time.time()
     initial_state_tuple = tuple(map(tuple, initial_state))
     goal_state_tuple = tuple(map(tuple, goal_state))
 
-    # a fronteira (open list) e implementada como uma fila de prioridade (min-heap).
     fronteira = []
     start_node = Node(state=initial_state, g=0, h=heuristic_func(initial_state, goal_state))
     heapq.heappush(fronteira, start_node)
 
     visitados = {initial_state_tuple: start_node.g}
-
-    # variaveis para coleta de metricas de performance do algoritmo.
     nodes_visited_count = 0
     max_fronteira_size = 1
 
     while fronteira:
         max_fronteira_size = max(max_fronteira_size, len(fronteira))
-
-        # extrai o no com o menor valor de f(n) da fronteira para expansao.
         current_node = heapq.heappop(fronteira)
         nodes_visited_count += 1
-
         current_state_tuple = tuple(map(tuple, current_node.state))
 
-        # condicao de terminacao: verifica se o estado do no corrente corresponde ao estado-meta.
         if current_state_tuple == goal_state_tuple:
             end_time = time.time()
             path = reconstruct_path(current_node)
-
-            # prepara a estrutura de dados para a serializacao do estado final da fronteira e do conjunto de visitados.
             fronteira_list = [list(map(list, node.state)) for node in fronteira]
             visitados_list = {str(k): v for k, v in visitados.items()}
             output_data = {
                 'fronteira_final': fronteira_list,
                 'visitados_final': visitados_list
             }
-
             return {
                 "path": path,
                 "nodes_visited": nodes_visited_count,
@@ -176,15 +145,11 @@ def a_star_search(initial_state, goal_state, heuristic_func):
                 "output_data": output_data
             }
 
-        # expansao do no: geracao de todos os nos sucessores.
         for new_state_list, action in get_successors(current_node):
-            new_g = current_node.g + 1  # o custo de transicao entre estados adjacentes e uniforme e igual a 1.
+            new_g = current_node.g + 1
             new_state_tuple = tuple(map(tuple, new_state_list))
-
             if new_state_tuple in visitados and visitados[new_state_tuple] <= new_g:
                 continue
-
-            # atualiza o custo do no no conjunto de visitados e o insere na fronteira para avaliacao futura.
             visitados[new_state_tuple] = new_g
             new_h = heuristic_func(new_state_list, goal_state)
             successor_node = Node(state=new_state_list, parent=current_node, action=action, g=new_g, h=new_h)
@@ -192,22 +157,22 @@ def a_star_search(initial_state, goal_state, heuristic_func):
 
     return None
 
+
 if __name__ == "__main__":
     GOAL = [[1, 2, 3], [4, 5, 6], [7, 8, 0]]
 
-    # definicao dos cenarios (quadrados) de teste com diferentes niveis de complexidade.
     test_cases = {
         "facil": [[1, 2, 3], [4, 5, 6], [0, 7, 8]],
         "medio": [[1, 0, 3], [4, 2, 5], [7, 8, 6]],
         "dificil": [[8, 7, 1], [6, 0, 2], [5, 4, 3]],
-        "muito_dificil": [[6, 4, 7], [8, 5, 0], [3, 2, 1]] # instancia que exige um numero elevado de movimentos para a solucao.
+        "muito_dificil": [[6, 4, 7], [8, 5, 0], [3, 2, 1]]
     }
 
     heuristics = {
         "1": ("custo uniforme", heuristica_custo_uniforme),
         "2": ("a* nao admissivel", heuristica_nao_admissivel),
-        "3": ("a* admissivel simples (pecas fora do lugar)", heuristica_simples_admissivel),
-        "4": ("a* admissivel precisa (manhattan)", heuristica_manhattan_admissivel),
+        "3": ("a* admissivel simples", heuristica_simples_admissivel),
+        "4": ("a* admissivel precisa", heuristica_manhattan_admissivel),
     }
 
     print("bem-vindo ao solucionador do 8-puzzle!")
@@ -222,31 +187,47 @@ if __name__ == "__main__":
     print("\nescolha o algoritmo de busca:")
     for key, (name, _) in heuristics.items():
         print(f"{key}. {name}")
+    print("5. rodar todas as heuristicas para comparacao")
 
     algo_choice = input("digite o numero do algoritmo: ")
-    algo_name, heuristic_function = heuristics[algo_choice]
 
-    print(f"\nresolvendo o tabuleiro '{board_name}' com '{algo_name}'...")
+    if algo_choice == "5":
+        print(f"\nrodando todas as heurísticas para o tabuleiro '{board_name}'...\n")
+        resultados = []
+        for key, (algo_name, heuristic_function) in heuristics.items():
+            print(f"\n--- resolvendo com '{algo_name}' ---")
+            result = a_star_search(initial_board, GOAL, heuristic_function)
+            if result:
+                print(f"caminho: {' -> '.join(result['path'])}")
+                print(f"nodos visitados: {result['nodes_visited']}")
+                print(f"tamanho do caminho: {result['path_length']}")
+                print(f"tempo: {result['execution_time']:.6f}s")
+                print(f"max fronteira: {result['max_fronteira_size']}")
+                resultados.append((algo_name, result))
+        print("\n=== comparacao final ===")
+        for algo_name, result in resultados:
+            print(f"{algo_name:23} | nodos: {result['nodes_visited']:2} | caminho: {result['path_length']:2} | tempo: {result['execution_time']:.6f}s | fronteira: {result['max_fronteira_size']:2}")
 
-    result = a_star_search(initial_board, GOAL, heuristic_function)
+    else:
+        algo_name, heuristic_function = heuristics[algo_choice]
+        print(f"\nresolvendo o tabuleiro '{board_name}' com '{algo_name}'...")
+        result = a_star_search(initial_board, GOAL, heuristic_function)
 
-    if result:
-        print("\n--- solucao encontrada! ---")
-        print(f"caminho: {' -> '.join(result['path'])}")
-        print("\n--- metricas de desempenho ---")
-        print(f"1) total de nodos visitados: {result['nodes_visited']}")
-        print(f"2) tamanho do caminho: {result['path_length']}")
-        print(f"3) tempo de execucao: {result['execution_time']:.6f} segundos")
-        print(f"4) maior tamanho da fronteira: {result['max_fronteira_size']}")
+        if result:
+            print("\n--- solucao encontrada! ---")
+            print(f"caminho: {' -> '.join(result['path'])}")
+            print(f"nodos visitados: {result['nodes_visited']}")
+            print(f"tamanho do caminho: {result['path_length']}")
+            print(f"tempo de execucao: {result['execution_time']:.6f} segundos")
+            print(f"maior tamanho da fronteira: {result['max_fronteira_size']}")
 
-        # serializa os dados de saida para um arquivo no formato json.
-        filename = f"output_{board_name}_{algo_choice}.json"
-        with open(filename, 'w') as f:
-            json.dump(result['output_data'], f, indent=4)
-        print(f"\n5) fronteira e visitados salvos em '{filename}'")
+            filename = f"output_{board_name}_{algo_choice}.json"
+            with open(filename, 'w') as f:
+                json.dump(result['output_data'], f, indent=4)
+            print(f"fronteira e visitados salvos em '{filename}'")
 
-        show_viz = input("\nDeseja visualizar o caminho passo a passo? (s/n): ")
-        if show_viz.lower() == 's':
-            visualize_path(initial_board, result['path'])
-else:
-        print("nao foi possivel encontrar uma solucao.")
+            show_viz = input("\nDeseja visualizar o caminho passo a passo? (s/n): ")
+            if show_viz.lower() == 's':
+                visualize_path(initial_board, result['path'])
+        else:
+            print("nao foi possivel encontrar uma solucao.")
