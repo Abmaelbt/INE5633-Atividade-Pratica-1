@@ -5,10 +5,7 @@ import copy
 
 class Node:
     """
-    abstracao de um no na arvore de busca. encapsula o estado do quebra-cabeca,
-    a referencia ao no progenitor para reconstrucao da trajetoria, a operacao
-    que resultou neste estado, e as metricas de custo g (distancia da origem)
-    e h (estimativa heuristica ao objetivo).
+    abstracao de um no na arvore de busca. 
     """
     def __init__(self, state, parent=None, action=None, g=0, h=0):
         self.state = state
@@ -41,7 +38,6 @@ def heuristica_custo_uniforme(state, goal_state):
 def heuristica_simples_admissivel(state, goal_state):
     """
     heuristica admissivel baseada na contagem de pecas mal posicionadas (distancia de hamming).
-    a admissibilidade e garantida pois uma unica operacao pode corrigir, no maximo, a posicao de uma peca.
     """
     misplaced = 0
     for r in range(3):
@@ -52,9 +48,7 @@ def heuristica_simples_admissivel(state, goal_state):
 
 def heuristica_manhattan_admissivel(state, goal_state):
     """
-    heuristica admissivel informada pela distancia de manhattan. corresponde ao somatorio
-    das distancias l1 de cada peca a sua respectiva posicao-meta. sua admissibilidade
-    decorre do fato que cada movimento unitario altera a distancia de manhattan total em exatamente uma unidade.
+    heuristica admissivel informada pela distancia de manhattan. 
     """
     distance = 0
     for r in range(3):
@@ -68,7 +62,6 @@ def heuristica_manhattan_admissivel(state, goal_state):
 def heuristica_nao_admissivel(state, goal_state):
     """
     funcao heuristica nao admissivel que superestima o custo real ao objetivo.
-    embora possa acelerar a convergencia, compromete a garantia de otimalidade da solucao encontrada.
     """
     return heuristica_manhattan_admissivel(state, goal_state) * 2
 
@@ -110,6 +103,28 @@ def reconstruct_path(node):
         path.append(node.action)
         node = node.parent
     return path[::-1] # inverte a sequencia de acoes para apresentar a solucao na ordem cronologica correta.
+
+def visualize_path(initial_state, path):
+    def apply_move(state, move):
+        r, c = next((r, c) for r, row in enumerate(state) for c, val in enumerate(row) if val == 0)
+        moves = {'CIMA': (-1, 0), 'BAIXO': (1, 0), 'ESQUERDA': (0, -1), 'DIREITA': (0, 1)}
+        dr, dc = moves[move]
+        nr, nc = r + dr, c + dc
+        new_state = copy.deepcopy(state)
+        new_state[r][c], new_state[nr][nc] = new_state[nr][nc], new_state[r][c]
+        return new_state
+
+    def print_board(board, move_name="Estado Inicial"):
+        print(f"\n--- {move_name} ---")
+        for row in board:
+            print(" ".join(map(str, row)).replace('0', '_'))
+
+    current_state = copy.deepcopy(initial_state)
+    print_board(current_state)
+
+    for i, move in enumerate(path):
+        current_state = apply_move(current_state, move)
+        print_board(current_state, f"Passo {i+1}: {move}")
 
 def a_star_search(initial_state, goal_state, heuristic_func):
     # implementacao canonica do algoritmo de busca a*.
@@ -229,5 +244,9 @@ if __name__ == "__main__":
         with open(filename, 'w') as f:
             json.dump(result['output_data'], f, indent=4)
         print(f"\n5) fronteira e visitados salvos em '{filename}'")
-    else:
+
+        show_viz = input("\nDeseja visualizar o caminho passo a passo? (s/n): ")
+        if show_viz.lower() == 's':
+            visualize_path(initial_board, result['path'])
+else:
         print("nao foi possivel encontrar uma solucao.")
